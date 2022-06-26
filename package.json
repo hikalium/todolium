@@ -1,0 +1,24 @@
+{
+  "name": "todolium",
+  "version": "1.0.0",
+  "description": "Todo manager for hikalium",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hikalium/todolium.git"
+  },
+  "keywords": [
+    "todo",
+    "nodejs",
+    "hikalium"
+  ],
+  "author": "hikalium",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hikalium/todolium/issues"
+  },
+  "homepage": "https://github.com/hikalium/todolium#readme"
+}
