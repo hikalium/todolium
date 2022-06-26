@@ -3,53 +3,14 @@
   <meta charset="utf-8">
   <base target="_blank">
   <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&amp;display=swap" rel="stylesheet">
+    <link href="index.css" rel="stylesheet">
   <title>todolium</title>
-  <style>
-body {
-    font-family: 'Source Code Pro', monospace;
-    margin: 16px;
-}
-div {
-    margin-left: 64px;
-}
-a {
-    color: #1d68cd;
-    text-decoration: none;
-}
-p {
-    margin-bottom: 32px;
-}
-h3 {
-    border-top: 1px dotted #9dc0f0;
-    border-left: 8px solid #9dc0f0;
-    padding: 8px;
-    margin-top: 32px;
-    margin-bottom: 8px;
-}
-small {
-    color: #888888;
-    text-decoration: none;
-}
-ul {
-    list-style-type: none;
-    margin-top: 8px;
-    margin-bottom: 8px;
-}
-.todolium-input {
-  font-family: 'Source Code Pro', monospace;
-  font-size: 24px;
-  width: 100%;
-  border: 0px;
-  border-bottom: 2px solid #808080;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-}
-.todolium-input:focus {
-  outline: 0;
-}
-</style>
 </head>
 <body>
   <h1>todolium</h1>
   <input id="filter-value" class="todolium-input" type="text" placeholder="Something to do..." autofocus>
+  <script src="/socket.io/socket.io.js"></script>
+<script>
+  var socket = io();
+</script>
 </body>
