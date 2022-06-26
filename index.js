@@ -43,10 +43,31 @@ const todo_list = [
     deadline: Date.parse("2022-06-27T12:00:00.000+09:00"),
   },
 ];
+const done_list = [
+  {
+    id: 5,
+    task: "first item done",
+    created_at: Date.parse("2022-06-26T12:00:00.000+09:00"),
+    done_at: Date.parse("2022-06-26T12:30:00.000+09:00"),
+  },
+  {
+    id: 6,
+    task: "second item done",
+    created_at: Date.parse("2022-06-26T12:05:00.000+09:00"),
+    done_at: Date.parse("2022-06-26T13:00:00.000+09:00"),
+  },
+  {
+    id: 7,
+    task: "third item done",
+    created_at: Date.parse("2022-06-01T12:10:00.000+09:00"),
+    done_at: Date.parse("2022-06-27T12:00:00.000+09:00"),
+  },
+];
 
 io.on('connection', (socket) => {
   console.log('a user connected');
   socket.emit('list_todo', JSON.stringify(todo_list));
+  socket.emit('list_done', JSON.stringify(done_list));
   socket.on('new_todo', (s) => {
     console.log('new_todo: ' + s);
   });

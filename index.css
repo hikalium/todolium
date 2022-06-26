@@ -45,7 +45,7 @@ button {
 .todolium-input:focus {
   outline: 0;
 }
-.todolium-task-entry {
+.todolium-task {
   font-family: 'Source Code Pro', monospace;
   font-size: 24px;
   width: 100%;
@@ -56,23 +56,35 @@ button {
   height: 32px;
 }
 
-.todolium-task-entry-todo {
-  border-left: 8px solid #8888cc;
+.todolium-task-todo {
+  border-left: 8px solid #eecc88;
 }
-.todolium-task-entry-done {
+.todolium-task-done {
   border-left: 8px solid #88cc88;
+}
+.todolium-span-completion-info {
+  display: inline-block;
+  vertical-align: middle;
 }
 .todolium-span-duration {
   display: inline-block;
-  border: 1px solid #333333;
+  border: 2px solid #333333;
   width: 8em;
   text-align: center;
   vertical-align: middle;
+}
+.todolium-span-duration-behind {
+  display: inline-block;
+  border: 2px solid #ff3333;
+  width: 8em;
+  text-align: center;
+  vertical-align: middle;
+  background-color: #ffeeee;
 }
 .todolium-span-task {
   display: inline-block;
   border-left: 1px solid #333333;
-  width: 8em;
-  text-align: center;
   vertical-align: middle;
+  padding-left: 16px;
+  padding-right: 16px;
 }
