@@ -8,9 +8,14 @@
 </head>
 <body>
   <h1>todolium</h1>
-  <input id="filter-value" class="todolium-input" type="text" placeholder="Something to do..." autofocus>
+  <input id="inputbox" class="todolium-input" type="text" placeholder="Something to do..." autofocus>
+  <h2>Recently completed</h2>
+  <div id="completed_list">
+  </div>
+  <h2>ToDo</h2>
+  <div id="todo_list">
+  </div>
   <script src="/socket.io/socket.io.js"></script>
-<script>
-  var socket = io();
-</script>
+  <script src="humanize-duration.js"></script>
+  <script src="client.js"></script>
 </body>
