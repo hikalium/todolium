@@ -20,49 +20,53 @@ app.get('/client.js', (_req, res) => {
   res.sendFile(__dirname + '/client.js');
 });
 app.get('/humanize-duration.js', (_req, res) => {
-  res.sendFile(__dirname + '/node_modules/humanize-duration/humanize-duration.js');
+  res.sendFile(
+      __dirname + '/node_modules/humanize-duration/humanize-duration.js');
 });
 
 const todo_list = [
   {
     id: 1,
-    task: "first item",
-    created_at: Date.parse("2022-06-26T12:00:00.000+09:00"),
-    deadline: Date.parse("2022-06-26T12:00:00.000+09:00"),
+    task: 'first item',
+    created_at: Date.parse('2022-06-26T12:00:00.000+09:00'),
+    deadline: Date.parse('2022-06-26T12:00:00.000+09:00'),
   },
   {
     id: 2,
-    task: "second item",
-    created_at: Date.parse("2022-06-26T12:05:00.000+09:00"),
-    deadline: Date.parse("2022-06-26T12:00:00.000+09:00"),
+    task: 'second item',
+    created_at: Date.parse('2022-06-26T12:05:00.000+09:00'),
+    deadline: Date.parse('2022-06-26T12:00:00.000+09:00'),
   },
   {
     id: 3,
-    task: "third item",
-    created_at: Date.parse("2022-06-26T12:10:00.000+09:00"),
-    deadline: Date.parse("2022-06-27T12:00:00.000+09:00"),
+    task: 'third item',
+    created_at: Date.parse('2022-06-26T12:10:00.000+09:00'),
+    deadline: Date.parse('2022-06-27T12:00:00.000+09:00'),
   },
 ];
 const done_list = [
   {
     id: 5,
-    task: "first item done",
-    created_at: Date.parse("2022-06-26T12:00:00.000+09:00"),
-    done_at: Date.parse("2022-06-26T12:30:00.000+09:00"),
+    task: 'first item done',
+    created_at: Date.parse('2022-06-26T12:00:00.000+09:00'),
+    done_at: Date.parse('2022-06-26T12:30:00.000+09:00'),
   },
   {
     id: 6,
-    task: "second item done",
-    created_at: Date.parse("2022-06-26T12:05:00.000+09:00"),
-    done_at: Date.parse("2022-06-26T13:00:00.000+09:00"),
+    task: 'second item done',
+    created_at: Date.parse('2022-06-26T12:05:00.000+09:00'),
+    done_at: Date.parse('2022-06-26T13:00:00.000+09:00'),
   },
   {
     id: 7,
-    task: "third item done",
-    created_at: Date.parse("2022-06-01T12:10:00.000+09:00"),
-    done_at: Date.parse("2022-06-27T12:00:00.000+09:00"),
+    task: 'third item done',
+    created_at: Date.parse('2022-06-01T12:10:00.000+09:00'),
+    done_at: Date.parse('2022-06-27T12:00:00.000+09:00'),
   },
 ];
+let next_id = todo_list.concat(done_list).reduce(
+    (max, e) => max > e.id ? max : e.id, 0);
+console.log(`next_id: ${next_id}`);
 
 io.on('connection', (socket) => {
   console.log('a user connected');
@@ -70,6 +74,19 @@ io.on('connection', (socket) => {
   socket.emit('list_done', JSON.stringify(done_list));
   socket.on('new_todo', (s) => {
     console.log('new_todo: ' + s);
+    let t = {
+      id: next_id++,
+      task: s,
+      created_at: new Date(),
+      deadline: new Date((new Date).getTime() + 1000 * 60 * 60 * 24).getTime(),
+    };
+    console.log(t);
+    todo_list.push(t);
+    console.log(todo_list);
+    todo_list.sort(
+        (l, r) => {return l.deadline - r.deadline});
+    console.log(todo_list);
+    socket.emit('list_todo', JSON.stringify(todo_list));
   });
 });
 
