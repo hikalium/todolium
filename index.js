@@ -1,4 +1,6 @@
+import assert from 'assert';
 import express from 'express';
+import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import {Server} from 'socket.io';
@@ -10,6 +12,39 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+let todo_list;
+let done_list;
+let next_id;
+
+const loadData = () => {
+  /*
+   {
+      id: integer, unique id for the tasks,
+      task: string, name of the task,
+      created_at: integer, ms timestamp,
+      deadline: integer, ms timestamp,
+      ?done_at: integer, ms timestamp,
+   }
+   */
+  const json = fs.readFileSync('todo.json', 'utf-8');
+  const data = JSON.parse(json);
+  assert(data.todo_list !== undefined);
+  assert(data.done_list !== undefined);
+  todo_list = data.todo_list;
+  done_list = data.done_list;
+  next_id = todo_list.concat(done_list).reduce(
+      (max, e) => max > e.id ? max : e.id, 0);
+  console.log(`next_id: ${next_id}`);
+};
+const saveData = () => {
+  const data = {
+    todo_list: todo_list,
+    done_list: done_list,
+  };
+  fs.writeFileSync('todo.json', JSON.stringify(data));
+};
+
+loadData();
 app.get('/', (_req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
@@ -23,51 +58,6 @@ app.get('/humanize-duration.js', (_req, res) => {
   res.sendFile(
       __dirname + '/node_modules/humanize-duration/humanize-duration.js');
 });
-
-const todo_list = [
-  {
-    id: 1,
-    task: 'first item',
-    created_at: Date.parse('2022-06-26T12:00:00.000+09:00'),
-    deadline: Date.parse('2022-06-26T12:00:00.000+09:00'),
-  },
-  {
-    id: 2,
-    task: 'second item',
-    created_at: Date.parse('2022-06-26T12:05:00.000+09:00'),
-    deadline: Date.parse('2022-06-26T12:00:00.000+09:00'),
-  },
-  {
-    id: 3,
-    task: 'third item',
-    created_at: Date.parse('2022-06-26T12:10:00.000+09:00'),
-    deadline: Date.parse('2022-06-27T12:00:00.000+09:00'),
-  },
-];
-const done_list = [
-  {
-    id: 5,
-    task: 'first item done',
-    created_at: Date.parse('2022-06-26T12:00:00.000+09:00'),
-    done_at: Date.parse('2022-06-26T12:30:00.000+09:00'),
-  },
-  {
-    id: 6,
-    task: 'second item done',
-    created_at: Date.parse('2022-06-26T12:05:00.000+09:00'),
-    done_at: Date.parse('2022-06-26T13:00:00.000+09:00'),
-  },
-  {
-    id: 7,
-    task: 'third item done',
-    created_at: Date.parse('2022-06-01T12:10:00.000+09:00'),
-    done_at: Date.parse('2022-06-27T12:00:00.000+09:00'),
-  },
-];
-let next_id = todo_list.concat(done_list).reduce(
-    (max, e) => max > e.id ? max : e.id, 0);
-console.log(`next_id: ${next_id}`);
-
 io.on('connection', (socket) => {
   console.log('a user connected');
   socket.emit('list_todo', JSON.stringify(todo_list));
@@ -77,19 +67,18 @@ io.on('connection', (socket) => {
     let t = {
       id: next_id++,
       task: s,
-      created_at: new Date(),
+      created_at: new Date().getTime(),
       deadline: new Date((new Date).getTime() + 1000 * 60 * 60 * 24).getTime(),
     };
     console.log(t);
     todo_list.push(t);
     console.log(todo_list);
-    todo_list.sort(
-        (l, r) => {return l.deadline - r.deadline});
+    todo_list.sort((l, r) => {return l.deadline - r.deadline});
     console.log(todo_list);
+    saveData();
     socket.emit('list_todo', JSON.stringify(todo_list));
   });
 });
-
 server.listen(3000, () => {
   console.log('listening on *:3000');
 });
