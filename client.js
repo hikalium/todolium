@@ -40,6 +40,9 @@ const relDurationString = (() => {
            });
   }
 })();
+const markAsDone = (id) => {
+  socket.emit('mark_as_done', id);
+};
 
 socket.on('list_done', (list) => {
   list = JSON.parse(list).map(e => {
@@ -65,6 +68,8 @@ socket.on('list_done', (list) => {
   }
 });
 
+
+
 socket.on('list_todo', (list) => {
   const now = new Date;
   list = JSON.parse(list).map(e => {
@@ -80,7 +85,7 @@ socket.on('list_todo', (list) => {
         (d >= 0) ? 'todolium-span-duration' : 'todolium-span-duration-behind';
     todo_list.innerHTML += `
       <div id="task${e.id}" class="todolium-task todolium-task-todo">
-        <button>Done!</button>
+        <button onclick="markAsDone(${e.id});">Done!</button>
         <button>+1d</button>
         <button>+2d</button>
         <button>+4d</button>
@@ -95,6 +100,9 @@ socket.on('list_todo', (list) => {
 });
 
 inputbox.addEventListener('keydown', (e) => {
+  if (e.isComposing) {
+    return;
+  }
   if (e.key !== 'Enter') {
     return;
   }
