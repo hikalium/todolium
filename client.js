@@ -43,6 +43,9 @@ const relDurationString = (() => {
 const markAsDone = (id) => {
   socket.emit('mark_as_done', id);
 };
+const postpone = (id, ms) => {
+  socket.emit('postpone', id, ms);
+};
 
 socket.on('list_done', (list) => {
   list = JSON.parse(list).map(e => {
@@ -86,10 +89,10 @@ socket.on('list_todo', (list) => {
     todo_list.innerHTML += `
       <div id="task${e.id}" class="todolium-task todolium-task-todo">
         <button onclick="markAsDone(${e.id});">Done!</button>
-        <button>+1d</button>
-        <button>+2d</button>
-        <button>+4d</button>
-        <button>+8d</button>
+        <button onclick="postpone(${e.id}, 1 * 24 * 60 * 60 * 1000);">+1d</button>
+        <button onclick="postpone(${e.id}, 2 * 24 * 60 * 60 * 1000);">+2d</button>
+        <button onclick="postpone(${e.id}, 4 * 24 * 60 * 60 * 1000);">+4d</button>
+        <button onclick="postpone(${e.id}, 8 * 24 * 60 * 60 * 1000);">+8d</button>
         <span class="${duration_class}">${relDurationString(d)}</span>
         <span class="todolium-span-task">
           ${e.task}

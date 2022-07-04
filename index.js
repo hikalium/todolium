@@ -91,6 +91,9 @@ io.on('connection', (socket) => {
     done_list.push(t)
     updateData(socket);
   });
+  socket.on('postpone', (id, ms) => {
+    console.log(`postpone: ${id} ${ms}`);
+  });
 });
 server.listen(3000, () => {
   console.log('listening on *:3000');
