@@ -1,13 +1,14 @@
 import assert from 'assert';
 import express from 'express';
-import fs from 'fs';
-import http from 'http';
-import path from 'path';
+import * as fs from 'fs';
+import * as http from 'http';
+import * as path from 'path';
 import {Server} from 'socket.io';
 import {fileURLToPath} from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const todoliumRootPath = path.dirname(path.dirname(__filename));
+console.log(typeof express);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -50,17 +51,17 @@ const updateData = (socket) => {
 
 loadData();
 app.get('/', (_req, res) => {
-  res.sendFile(__dirname + '/index.html');
+  res.sendFile(todoliumRootPath + '/index.html');
 });
 app.get('/index.css', (_req, res) => {
-  res.sendFile(__dirname + '/index.css');
+  res.sendFile(todoliumRootPath + '/index.css');
 });
 app.get('/client.js', (_req, res) => {
-  res.sendFile(__dirname + '/client.js');
+  res.sendFile(todoliumRootPath + '/client.js');
 });
 app.get('/humanize-duration.js', (_req, res) => {
   res.sendFile(
-      __dirname + '/node_modules/humanize-duration/humanize-duration.js');
+      todoliumRootPath + '/node_modules/humanize-duration/humanize-duration.js');
 });
 io.on('connection', (socket) => {
   console.log('a user connected');
@@ -80,13 +81,13 @@ io.on('connection', (socket) => {
   socket.on('mark_as_done', (id) => {
     console.log(`mark_as_done: ${id}`);
     const idx = todo_list.findIndex((e) => e.id == id);
-    if( idx < 0 ){
-      console.log("Not found");
+    if (idx < 0) {
+      console.log('Not found');
       return;
     }
     const t = todo_list[idx];
     todo_list.splice(idx, 1);
-    t.done_at =  new Date().getTime();
+    t.done_at = new Date().getTime();
     console.log(t);
     done_list.push(t)
     updateData(socket);

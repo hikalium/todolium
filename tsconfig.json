@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "module": "es2022",
+    "preserveConstEnums": true,
+    "outDir": "./generated/",
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node"
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
