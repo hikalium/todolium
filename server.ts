@@ -94,6 +94,13 @@ io.on('connection', (socket) => {
   });
   socket.on('postpone', (id, ms) => {
     console.log(`postpone: ${id} ${ms}`);
+    const idx = todo_list.findIndex((e) => e.id == id);
+    if (idx < 0) {
+      console.log('Not found');
+      return;
+    }
+    todo_list[idx].deadline = new Date().getTime() + ms;
+    updateData(socket);
   });
 });
 server.listen(3000, () => {

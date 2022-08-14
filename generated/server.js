@@ -88,6 +88,13 @@ io.on('connection', function (socket) {
     });
     socket.on('postpone', function (id, ms) {
         console.log("postpone: ".concat(id, " ").concat(ms));
+        var idx = todo_list.findIndex(function (e) { return e.id == id; });
+        if (idx < 0) {
+            console.log('Not found');
+            return;
+        }
+        todo_list[idx].deadline = new Date().getTime() + ms;
+        updateData(socket);
     });
 });
 server.listen(3000, function () {
