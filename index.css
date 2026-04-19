@@ -99,3 +99,67 @@ button {
   font-weight: normal;
   color: #aaaaaa;
 }
+.todolium-task-row {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.todolium-drag-handle {
+  cursor: grab;
+  padding: 0 12px;
+  color: #aaaaaa;
+  font-size: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  touch-action: none;
+  user-select: none;
+}
+.todolium-drag-handle:active {
+  cursor: grabbing;
+}
+.todolium-drop-indicator {
+  height: 2px;
+  background-color: #1d68cd;
+  margin: 0 10px;
+  pointer-events: none;
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 8px;
+  }
+  .todolium-input {
+    font-size: clamp(16px, 4vw, 24px);
+  }
+  .todolium-task {
+    font-size: clamp(16px, 4vw, 24px);
+    height: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.4;
+  }
+  .todolium-task-row {
+    width: 100%;
+    margin-top: 4px;
+  }
+  .todolium-span-task {
+    flex: 1;
+    border-left: none;
+    padding-left: 0;
+  }
+  .todolium-span-duration,
+  .todolium-span-duration-behind {
+    width: auto;
+    min-width: 6em;
+  }
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 8px;
+  }
+  .todolium-postpone {
+    display: none;
+  }
+}

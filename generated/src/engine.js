@@ -1,3 +1,4 @@
+const MIN_GAP_MS = 60_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Deterministic winner between two events: higher at wins, eid breaks ties.
 function winner(a, b) {
@@ -99,5 +100,20 @@ export function deriveState(events) {
         .filter((t) => t.done_at !== undefined)
         .sort((a, b) => b.done_at - a.done_at);
     return { todo_list, done_list };
+}
+// Returns the deadline to assign to a task inserted between above and below.
+// above=null means insertion before the first task; below=null means after the last.
+export function calculateInsertionDeadline(above, below) {
+    if (above === null && below === null)
+        return Date.now() + DAY_MS;
+    if (above === null)
+        return below.deadline - DAY_MS;
+    if (below === null)
+        return above.deadline + DAY_MS;
+    const mid = Math.floor((above.deadline + below.deadline) / 2);
+    if (below.deadline - above.deadline < MIN_GAP_MS) {
+        return above.deadline + Math.floor(MIN_GAP_MS / 2);
+    }
+    return mid;
 }
 //# sourceMappingURL=engine.js.map

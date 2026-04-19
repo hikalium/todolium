@@ -1,4 +1,4 @@
-import { mergeChains, deriveState } from './engine.js';
+import { mergeChains, deriveState, calculateInsertionDeadline } from './engine.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 const SYNC_INTERVAL_MS = 5000;
@@ -120,6 +120,88 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// --- Drag-to-reorder ---
+let dragState = null; // { taskId, sourceIndex, indicatorEl }
+
+function setupDrag(todoListEl, todoList) {
+  let indicatorEl = null;
+
+  function getDropIndex(clientY) {
+    const items = [...todoListEl.querySelectorAll('.todolium-task-todo')];
+    for (let i = 0; i < items.length; i++) {
+      const rect = items[i].getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return items.length;
+  }
+
+  function showIndicator(dropIndex) {
+    if (!indicatorEl) {
+      indicatorEl = document.createElement('div');
+      indicatorEl.className = 'todolium-drop-indicator';
+    }
+    const items = [...todoListEl.querySelectorAll('.todolium-task-todo')];
+    if (items.length === 0) return;
+    if (dropIndex < items.length) {
+      todoListEl.insertBefore(indicatorEl, items[dropIndex]);
+    } else {
+      todoListEl.appendChild(indicatorEl);
+    }
+  }
+
+  function removeIndicator() {
+    if (indicatorEl && indicatorEl.parentNode) {
+      indicatorEl.parentNode.removeChild(indicatorEl);
+    }
+    indicatorEl = null;
+  }
+
+  todoListEl.querySelectorAll('.todolium-drag-handle').forEach((handle, sourceIndex) => {
+    const taskId = handle.dataset.taskId;
+
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      dragState = { taskId, sourceIndex };
+      handle.closest('.todolium-task').style.opacity = '0.5';
+      showIndicator(sourceIndex);
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+      if (!dragState || dragState.taskId !== taskId) return;
+      const dropIndex = getDropIndex(e.clientY);
+      showIndicator(dropIndex);
+    });
+
+    handle.addEventListener('pointerup', (e) => {
+      if (!dragState || dragState.taskId !== taskId) return;
+      const dropIndex = getDropIndex(e.clientY);
+      removeIndicator();
+      handle.closest('.todolium-task').style.opacity = '';
+      dragState = null;
+
+      // Skip if dropped on same position
+      if (dropIndex === sourceIndex || dropIndex === sourceIndex + 1) return;
+
+      const above = todoList[dropIndex - 1] ?? null;
+      const below = todoList[dropIndex] ?? null;
+      // Exclude the dragged task itself from neighbor computation
+      const aboveAdj = above && above.task_id === taskId ? (todoList[dropIndex - 2] ?? null) : above;
+      const belowAdj = below && below.task_id === taskId ? (todoList[dropIndex + 1] ?? null) : below;
+      const targetDeadline = calculateInsertionDeadline(aboveAdj, belowAdj);
+      const ms = targetDeadline - Date.now();
+      postpone(taskId, ms);
+    });
+
+    handle.addEventListener('pointercancel', () => {
+      if (!dragState || dragState.taskId !== taskId) return;
+      removeIndicator();
+      handle.closest('.todolium-task').style.opacity = '';
+      dragState = null;
+    });
+  });
+}
+
 // --- Render ---
 function render(state) {
   const now = Date.now();
@@ -138,15 +220,20 @@ function render(state) {
     return `
       <div class="todolium-task todolium-task-todo">
         <button onclick="markAsDone('${t.task_id}')">Done!</button>
-        <button onclick="postpone('${t.task_id}', ${1 * DAY})">+1d</button>
-        <button onclick="postpone('${t.task_id}', ${2 * DAY})">+2d</button>
-        <button onclick="postpone('${t.task_id}', ${4 * DAY})">+4d</button>
-        <button onclick="postpone('${t.task_id}', ${8 * DAY})">+8d</button>
+        <button class="todolium-postpone" onclick="postpone('${t.task_id}', ${1 * DAY})">+1d</button>
+        <button class="todolium-postpone" onclick="postpone('${t.task_id}', ${2 * DAY})">+2d</button>
+        <button class="todolium-postpone" onclick="postpone('${t.task_id}', ${4 * DAY})">+4d</button>
+        <button class="todolium-postpone" onclick="postpone('${t.task_id}', ${8 * DAY})">+8d</button>
         <span class="${cls}">${relDur(d)}</span>
-        <span class="todolium-span-task">${esc(t.task)}</span>
+        <span class="todolium-task-row">
+          <span class="todolium-span-task">${esc(t.task)}</span>
+          <span class="todolium-drag-handle" data-task-id="${t.task_id}">⠿</span>
+        </span>
       </div>
     `;
   }).join('');
+
+  setupDrag(document.getElementById('todo_list'), state.todo_list);
 }
 
 // Expose for inline onclick handlers
