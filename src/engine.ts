@@ -1,5 +1,7 @@
 import type { TodoEvent, Task, TodoState } from './types.js';
 
+const MIN_GAP_MS = 60_000;
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Deterministic winner between two events: higher at wins, eid breaks ties.
@@ -108,4 +110,17 @@ export function deriveState(events: TodoEvent[]): TodoState {
     .sort((a, b) => b.done_at - a.done_at);
 
   return { todo_list, done_list };
+}
+
+// Returns the deadline to assign to a task inserted between above and below.
+// above=null means insertion before the first task; below=null means after the last.
+export function calculateInsertionDeadline(above: Task | null, below: Task | null): number {
+  if (above === null && below === null) return Date.now() + DAY_MS;
+  if (above === null) return below!.deadline - DAY_MS;
+  if (below === null) return above.deadline + DAY_MS;
+  const mid = Math.floor((above.deadline + below.deadline) / 2);
+  if (below.deadline - above.deadline < MIN_GAP_MS) {
+    return above.deadline + Math.floor(MIN_GAP_MS / 2);
+  }
+  return mid;
 }

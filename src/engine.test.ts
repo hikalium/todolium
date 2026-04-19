@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeChains, deriveState } from './engine.js';
-import type { TodoEvent } from './types.js';
+import { mergeChains, deriveState, calculateInsertionDeadline } from './engine.js';
+import type { TodoEvent, Task } from './types.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -111,4 +111,53 @@ test('T9: edit_task(300) beats mark_done(250)', () => {
   assert.equal(state.todo_list.length, 1);
   assert.equal(state.todo_list[0].task, 'New name');
   assert.equal(state.done_list.length, 0);
+});
+
+function task(deadline: number): Task {
+  return { task_id: 'x', task: 'x', created_at: 0, deadline };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// T10: inserting between two tasks returns the midpoint deadline
+test('T10: calculateInsertionDeadline between two tasks returns midpoint', () => {
+  const above = task(DAY_MS);
+  const below = task(3 * DAY_MS);
+  assert.equal(calculateInsertionDeadline(above, below), 2 * DAY_MS);
+});
+
+// T11: inserting into top position returns first.deadline - 1 day
+test('T11: calculateInsertionDeadline at top returns first.deadline - 1 day', () => {
+  const below = task(5000);
+  assert.equal(calculateInsertionDeadline(null, below), 5000 - DAY_MS);
+});
+
+// T11b: top insert works even when first task is already overdue (deadline in past)
+test('T11b: calculateInsertionDeadline at top works with overdue first task', () => {
+  const pastDeadline = Date.now() - 2 * DAY_MS;
+  const below = task(pastDeadline);
+  assert.equal(calculateInsertionDeadline(null, below), pastDeadline - DAY_MS);
+});
+
+// T12: inserting into bottom position returns last.deadline + 1 day
+test('T12: calculateInsertionDeadline at bottom returns last.deadline + 1 day', () => {
+  const above = task(5000);
+  assert.equal(calculateInsertionDeadline(above, null), 5000 + DAY_MS);
+});
+
+// T13: when neighbors share the same deadline, minimum gap is enforced
+test('T13: calculateInsertionDeadline enforces minimum gap for identical deadlines', () => {
+  const d = 10000;
+  const result = calculateInsertionDeadline(task(d), task(d));
+  assert.ok(result > d, 'result should be greater than above.deadline');
+  assert.ok(result < d + 60_000, 'result should be within min gap');
+});
+
+// T14: empty list (both null) returns approximately now + 1 day
+test('T14: calculateInsertionDeadline with no neighbors returns now + 1 day', () => {
+  const before = Date.now();
+  const result = calculateInsertionDeadline(null, null);
+  const after = Date.now();
+  assert.ok(result >= before + DAY_MS);
+  assert.ok(result <= after + DAY_MS);
 });
