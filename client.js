@@ -206,9 +206,8 @@ function setupDrag(todoListEl, todoList) {
 function render(state) {
   const now = Date.now();
 
-  // Show up to 3 recently completed tasks, oldest-first so timeline flows top→bottom
-  const recentDone = state.done_list.slice(0, 3).reverse();
-  document.getElementById('done_list').innerHTML = recentDone.map(t => `
+  // done_list is already sorted oldest-first (done_at ascending) by deriveState
+  document.getElementById('done_list').innerHTML = state.done_list.slice(-3).map(t => `
     <div class="todolium-task todolium-task-done">
       <button onclick="revertTask('${t.task_id}')">revert</button>
       <span class="todolium-span-task">${esc(t.task)}</span>

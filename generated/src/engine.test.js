@@ -141,4 +141,86 @@ test('T14: calculateInsertionDeadline with no neighbors returns now + 1 day', ()
     assert.ok(result >= before + DAY_MS);
     assert.ok(result <= after + DAY_MS);
 });
+// --- todo_list sort order ---
+// T15: todo_list is sorted by deadline ascending (most urgent first)
+test('T15: todo_list sorted by deadline ascending', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 100, parent_eid: null, task: 'Later' }),
+        ev({ eid: 'E2', type: 'postpone', task_id: 'T1', at: 200, parent_eid: 'E1', ms: 3 * DAY }),
+        ev({ eid: 'E3', type: 'add_todo', task_id: 'T2', at: 300, parent_eid: null, task: 'Sooner' }),
+        ev({ eid: 'E4', type: 'postpone', task_id: 'T2', at: 400, parent_eid: 'E3', ms: DAY }),
+    ], []);
+    const { todo_list } = deriveState(events);
+    assert.equal(todo_list.length, 2);
+    assert.equal(todo_list[0].task, 'Sooner');
+    assert.equal(todo_list[1].task, 'Later');
+    assert.ok(todo_list[0].deadline < todo_list[1].deadline);
+});
+// T16: postponing a task moves it later in todo_list
+test('T16: postpone moves task toward end of todo_list', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 100, parent_eid: null, task: 'A' }),
+        ev({ eid: 'E2', type: 'add_todo', task_id: 'T2', at: 100, parent_eid: null, task: 'B' }),
+        ev({ eid: 'E3', type: 'postpone', task_id: 'T1', at: 200, parent_eid: 'E1', ms: 3 * DAY }),
+    ], []);
+    const { todo_list } = deriveState(events);
+    assert.equal(todo_list[0].task, 'B');
+    assert.equal(todo_list[1].task, 'A');
+});
+// T17: task added with an earlier deadline appears before existing tasks
+test('T17: newly added task with earlier deadline sorts to front', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 1000, parent_eid: null, task: 'Old' }),
+        ev({ eid: 'E2', type: 'postpone', task_id: 'T1', at: 1100, parent_eid: 'E1', ms: 2 * DAY }),
+        ev({ eid: 'E3', type: 'add_todo', task_id: 'T2', at: 2000, parent_eid: null, task: 'Urgent' }),
+        ev({ eid: 'E4', type: 'postpone', task_id: 'T2', at: 2100, parent_eid: 'E3', ms: DAY }),
+    ], []);
+    const { todo_list } = deriveState(events);
+    assert.equal(todo_list[0].task, 'Urgent');
+    assert.equal(todo_list[1].task, 'Old');
+});
+// --- done_list sort order ---
+// T18: done_list is sorted by done_at ascending (oldest completion first)
+test('T18: done_list sorted by done_at ascending', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 100, parent_eid: null, task: 'First done' }),
+        ev({ eid: 'E2', type: 'mark_done', task_id: 'T1', at: 200, parent_eid: 'E1' }),
+        ev({ eid: 'E3', type: 'add_todo', task_id: 'T2', at: 100, parent_eid: null, task: 'Second done' }),
+        ev({ eid: 'E4', type: 'mark_done', task_id: 'T2', at: 300, parent_eid: 'E3' }),
+    ], []);
+    const { done_list } = deriveState(events);
+    assert.equal(done_list.length, 2);
+    assert.equal(done_list[0].task, 'First done');
+    assert.equal(done_list[1].task, 'Second done');
+    assert.ok(done_list[0].done_at < done_list[1].done_at);
+});
+// T19: most recently completed task appears last in done_list
+test('T19: most recently completed task is last in done_list', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 100, parent_eid: null, task: 'A' }),
+        ev({ eid: 'E2', type: 'mark_done', task_id: 'T1', at: 500, parent_eid: 'E1' }),
+        ev({ eid: 'E3', type: 'add_todo', task_id: 'T2', at: 100, parent_eid: null, task: 'B' }),
+        ev({ eid: 'E4', type: 'mark_done', task_id: 'T2', at: 300, parent_eid: 'E3' }),
+        ev({ eid: 'E5', type: 'add_todo', task_id: 'T3', at: 100, parent_eid: null, task: 'C' }),
+        ev({ eid: 'E6', type: 'mark_done', task_id: 'T3', at: 400, parent_eid: 'E5' }),
+    ], []);
+    const { done_list } = deriveState(events);
+    assert.equal(done_list[0].task, 'B');
+    assert.equal(done_list[1].task, 'C');
+    assert.equal(done_list[2].task, 'A');
+});
+// T20: after revert and re-done, task's position reflects new done_at
+test('T20: revert then re-mark_done updates position in done_list', () => {
+    const events = mergeChains([
+        ev({ eid: 'E1', type: 'add_todo', task_id: 'T1', at: 100, parent_eid: null, task: 'Redone' }),
+        ev({ eid: 'E2', type: 'mark_done', task_id: 'T1', at: 200, parent_eid: 'E1' }),
+        ev({ eid: 'E3', type: 'revert', task_id: 'T1', at: 300, parent_eid: 'E2' }),
+        ev({ eid: 'E4', type: 'mark_done', task_id: 'T1', at: 500, parent_eid: 'E3' }),
+        ev({ eid: 'E5', type: 'add_todo', task_id: 'T2', at: 100, parent_eid: null, task: 'Other' }),
+        ev({ eid: 'E6', type: 'mark_done', task_id: 'T2', at: 400, parent_eid: 'E5' }),
+    ], []);
+    const { done_list } = deriveState(events);
+    assert.equal(done_list[0].task, 'Other'); // done_at=400
+    assert.equal(done_list[1].task, 'Redone'); // done_at=500 (re-done later)
+});
 //# sourceMappingURL=engine.test.js.map

@@ -98,7 +98,7 @@ export function deriveState(events) {
         .sort((a, b) => a.deadline - b.deadline);
     const done_list = [...tasks.values()]
         .filter((t) => t.done_at !== undefined)
-        .sort((a, b) => b.done_at - a.done_at);
+        .sort((a, b) => a.done_at - b.done_at);
     return { todo_list, done_list };
 }
 // Returns the deadline to assign to a task inserted between above and below.
