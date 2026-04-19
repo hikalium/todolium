@@ -107,7 +107,7 @@ export function deriveState(events: TodoEvent[]): TodoState {
 
   const done_list = [...tasks.values()]
     .filter((t): t is Task & { done_at: number } => t.done_at !== undefined)
-    .sort((a, b) => b.done_at - a.done_at);
+    .sort((a, b) => a.done_at - b.done_at);
 
   return { todo_list, done_list };
 }
