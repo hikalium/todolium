@@ -89,3 +89,13 @@ button {
   padding-left: 16px;
   padding-right: 16px;
 }
+.sync-online {
+  font-size: 14px;
+  font-weight: normal;
+  color: #44aa44;
+}
+.sync-offline {
+  font-size: 14px;
+  font-weight: normal;
+  color: #aaaaaa;
+}

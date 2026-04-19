@@ -1,6 +1,7 @@
 import { mergeChains, deriveState } from './engine.js';
 
 const DAY = 24 * 60 * 60 * 1000;
+const SYNC_INTERVAL_MS = 5000;
 
 // --- Device ID ---
 let deviceId = localStorage.getItem('todolium_device_id');
@@ -23,11 +24,15 @@ function getTaskTip(events, taskId) {
   return tips.length > 0 ? tips[0].eid : null;
 }
 
+function saveAndRender(events) {
+  localStorage.setItem('todolium_events', JSON.stringify(events));
+  render(deriveState(mergeChains(events, [])));
+}
+
 function appendAndRender(event) {
   const events = loadEvents();
   events.push(event);
-  localStorage.setItem('todolium_events', JSON.stringify(events));
-  render(deriveState(mergeChains(events, [])));
+  saveAndRender(events);
 }
 
 function makeEvent(type, taskId, parentEid, extra = {}) {
@@ -53,6 +58,45 @@ function postpone(taskId, ms) {
 function revertTask(taskId) {
   const tip = getTaskTip(mergeChains(loadEvents(), []), taskId);
   if (tip) appendAndRender(makeEvent('revert', taskId, tip));
+}
+
+// --- Server sync ---
+let online = false;
+
+function setOnlineStatus(isOnline) {
+  if (online === isOnline) return;
+  online = isOnline;
+  const indicator = document.getElementById('sync_status');
+  if (indicator) {
+    indicator.textContent = online ? '● synced' : '○ offline';
+    indicator.className = online ? 'sync-online' : 'sync-offline';
+  }
+}
+
+async function syncWithServer() {
+  try {
+    const res = await fetch('/api/events');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const serverEvents = await res.json();
+    const localEvents = loadEvents();
+    const merged = mergeChains(localEvents, serverEvents);
+
+    // Push events the server doesn't have
+    const serverEids = new Set(serverEvents.map(e => e.eid));
+    const toSend = merged.filter(e => !serverEids.has(e.eid));
+    if (toSend.length > 0) {
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(toSend),
+      });
+    }
+
+    saveAndRender(merged);
+    setOnlineStatus(true);
+  } catch {
+    setOnlineStatus(false);
+  }
 }
 
 // --- Duration formatting ---
@@ -120,5 +164,7 @@ inputbox.addEventListener('keydown', (e) => {
   inputbox.value = '';
 });
 
-// --- Initial render ---
+// --- Boot ---
 render(deriveState(mergeChains(loadEvents(), [])));
+syncWithServer();
+setInterval(syncWithServer, SYNC_INTERVAL_MS);
