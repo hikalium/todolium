@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Todo manager for hikalium",
   "scripts": {
-    "test": "echo \"Error: no test specified\"",
+    "test": "tsc -p src/tsconfig.json && node --test 'generated/src/engine.test.js'",
     "start": "node --enable-source-maps generated/server.js"
   },
   "repository": {

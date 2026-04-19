@@ -5,7 +5,9 @@
     "outDir": "./generated/",
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["*.ts"],
   "exclude": ["node_modules", "**/*.spec.ts"]
