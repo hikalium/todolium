@@ -54,7 +54,7 @@ button {
   padding: 8px;
   margin: 10px;
   line-height: 32px;
-  height: 32px;
+  min-height: 32px;
 }
 
 .todolium-task-todo {
@@ -88,6 +88,28 @@ button {
   vertical-align: middle;
   padding-left: 16px;
   padding-right: 16px;
+}
+details {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+.done-summary {
+  font-size: 14px;
+  color: #aaaaaa;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding: 4px 0;
+}
+.done-summary::before {
+  content: '▶ ';
+  font-size: 10px;
+}
+details[open] .done-summary::before {
+  content: '▼ ';
+}
+.done-summary::-webkit-details-marker {
+  display: none;
 }
 .sync-online {
   font-size: 14px;

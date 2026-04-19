@@ -10,9 +10,10 @@
 <body>
   <h1>todolium <span id="sync_status" class="sync-offline">○ offline</span></h1>
   <input id="inputbox" class="todolium-input" type="text" placeholder="Something to do..." autofocus>
-  <h2>Recently completed</h2>
-  <div id="done_list">
-  </div>
+  <details id="done_section">
+    <summary class="done-summary">Recently completed</summary>
+    <div id="done_list"></div>
+  </details>
   <h2>ToDo</h2>
   <div id="todo_list">
   </div>
