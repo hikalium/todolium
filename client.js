@@ -1,118 +1,124 @@
-const socket = io();
+import { mergeChains, deriveState } from './engine.js';
+
+const DAY = 24 * 60 * 60 * 1000;
+
+// --- Device ID ---
+let deviceId = localStorage.getItem('todolium_device_id');
+if (!deviceId) {
+  deviceId = crypto.randomUUID();
+  localStorage.setItem('todolium_device_id', deviceId);
+}
+
+// --- Event store ---
+function loadEvents() {
+  try {
+    return JSON.parse(localStorage.getItem('todolium_events') ?? '[]');
+  } catch { return []; }
+}
+
+function getTaskTip(events, taskId) {
+  const taskEvents = events.filter(e => e.task_id === taskId);
+  const parentEids = new Set(taskEvents.map(e => e.parent_eid).filter(Boolean));
+  const tips = taskEvents.filter(e => !parentEids.has(e.eid));
+  return tips.length > 0 ? tips[0].eid : null;
+}
+
+function appendAndRender(event) {
+  const events = loadEvents();
+  events.push(event);
+  localStorage.setItem('todolium_events', JSON.stringify(events));
+  render(deriveState(mergeChains(events, [])));
+}
+
+function makeEvent(type, taskId, parentEid, extra = {}) {
+  return { eid: crypto.randomUUID(), type, at: Date.now(), device_id: deviceId, task_id: taskId, parent_eid: parentEid, ...extra };
+}
+
+// --- Actions ---
+function addTodo(text) {
+  const task_id = crypto.randomUUID();
+  appendAndRender(makeEvent('add_todo', task_id, null, { task: text }));
+}
+
+function markAsDone(taskId) {
+  const tip = getTaskTip(mergeChains(loadEvents(), []), taskId);
+  if (tip) appendAndRender(makeEvent('mark_done', taskId, tip));
+}
+
+function postpone(taskId, ms) {
+  const tip = getTaskTip(mergeChains(loadEvents(), []), taskId);
+  if (tip) appendAndRender(makeEvent('postpone', taskId, tip, { ms }));
+}
+
+function revertTask(taskId) {
+  const tip = getTaskTip(mergeChains(loadEvents(), []), taskId);
+  if (tip) appendAndRender(makeEvent('revert', taskId, tip));
+}
+
+// --- Duration formatting ---
+function formatDuration(ms) {
+  const abs = Math.abs(ms);
+  const d = Math.floor(abs / 86400000);
+  const h = Math.floor((abs % 86400000) / 3600000);
+  const m = Math.floor((abs % 3600000) / 60000);
+  const s = Math.floor((abs % 60000) / 1000);
+  const parts = [];
+  if (d) parts.push(`${d}d`);
+  if (h) parts.push(`${h}h`);
+  if (m) parts.push(`${m}m`);
+  if (s) parts.push(`${s}s`);
+  return parts.slice(0, 2).join('') || '0s';
+}
+const absDur = (ms) => formatDuration(ms);
+const relDur = (ms) => (ms < 0 ? '-' : '+') + formatDuration(ms);
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// --- Render ---
+function render(state) {
+  const now = Date.now();
+
+  document.getElementById('done_list').innerHTML = state.done_list.slice(0, 3).map(t => `
+    <div class="todolium-task todolium-task-done">
+      <button onclick="revertTask('${t.task_id}')">revert</button>
+      <span class="todolium-span-task">${esc(t.task)}</span>
+      <span class="todolium-span-completion-info">${new Date(t.done_at).toISOString()}, Took ${absDur(t.done_at - t.created_at)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('todo_list').innerHTML = state.todo_list.map(t => {
+    const d = t.deadline - now;
+    const cls = d >= 0 ? 'todolium-span-duration' : 'todolium-span-duration-behind';
+    return `
+      <div class="todolium-task todolium-task-todo">
+        <button onclick="markAsDone('${t.task_id}')">Done!</button>
+        <button onclick="postpone('${t.task_id}', ${1 * DAY})">+1d</button>
+        <button onclick="postpone('${t.task_id}', ${2 * DAY})">+2d</button>
+        <button onclick="postpone('${t.task_id}', ${4 * DAY})">+4d</button>
+        <button onclick="postpone('${t.task_id}', ${8 * DAY})">+8d</button>
+        <span class="${cls}">${relDur(d)}</span>
+        <span class="todolium-span-task">${esc(t.task)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// Expose for inline onclick handlers
+window.markAsDone = markAsDone;
+window.postpone = postpone;
+window.revertTask = revertTask;
+
+// --- Input handler ---
 const inputbox = document.getElementById('inputbox');
-const done_list = document.getElementById('done_list');
-const todo_list = document.getElementById('todo_list');
-
-const durationString = humanizeDuration.humanizer({
-  language: 'shortEn',
-  languages: {
-    shortEn: {
-      y: () => 'y',
-      mo: () => 'mo',
-      w: () => 'w',
-      d: () => 'd',
-      h: () => 'h',
-      m: () => 'm',
-      s: () => 's',
-      ms: () => 'ms',
-    },
-  },
-});
-const absDurationString = (() => {
-  return (d) => {
-    return durationString(d, {
-      units: ['d', 'h', 'm', 's'],
-      round: true,
-      spacer: '',
-      largest: 2,
-      delimiter: '',
-    });
-  }
-})();
-const relDurationString = (() => {
-  return (d) => {
-    return (d < 0 ? '-' : '+') + durationString(d, {
-             units: ['d', 'h', 'm', 's'],
-             round: true,
-             spacer: '',
-             largest: 2,
-             delimiter: '',
-           });
-  }
-})();
-const markAsDone = (id) => {
-  socket.emit('mark_as_done', id);
-};
-const postpone = (id, ms) => {
-  socket.emit('postpone', id, ms);
-};
-
-socket.on('list_done', (list) => {
-  list = JSON.parse(list).map(e => {
-    e.created_at = new Date(e.created_at);
-    e.done_at = new Date(e.done_at);
-    return e;
-  });
-  console.log('list_completed:', list);
-  done_list.innerHTML = '';
-  for (e of list) {
-    done_list.innerHTML += `
-      <div id="task${e.id}" class="todolium-task todolium-task-done">
-        <button>revert</button>
-        <span class="todolium-span-task">
-          ${e.task}
-        </span>
-        <span class="todolium-span-completion-info">${
-        e.done_at.toISOString()}, Took ${
-        absDurationString(e.done_at.getTime() - e.created_at.getTime())}</span>
-        </span>
-      </div>
-    `;
-  }
-});
-
-
-
-socket.on('list_todo', (list) => {
-  const now = new Date;
-  list = JSON.parse(list).map(e => {
-    e.created_at = new Date(e.created_at);
-    e.deadline = new Date(e.deadline);
-    return e;
-  });
-  console.log('list_todo:', list);
-  todo_list.innerHTML = '';
-  for (e of list) {
-    const d = e.deadline.getTime() - now.getTime();
-    const duration_class =
-        (d >= 0) ? 'todolium-span-duration' : 'todolium-span-duration-behind';
-    todo_list.innerHTML += `
-      <div id="task${e.id}" class="todolium-task todolium-task-todo">
-        <button onclick="markAsDone(${e.id});">Done!</button>
-        <button onclick="postpone(${e.id}, 1 * 24 * 60 * 60 * 1000);">+1d</button>
-        <button onclick="postpone(${e.id}, 2 * 24 * 60 * 60 * 1000);">+2d</button>
-        <button onclick="postpone(${e.id}, 4 * 24 * 60 * 60 * 1000);">+4d</button>
-        <button onclick="postpone(${e.id}, 8 * 24 * 60 * 60 * 1000);">+8d</button>
-        <span class="${duration_class}">${relDurationString(d)}</span>
-        <span class="todolium-span-task">
-          ${e.task}
-        </span>
-      </div>
-    `;
-  }
-});
-
 inputbox.addEventListener('keydown', (e) => {
-  if (e.isComposing) {
-    return;
-  }
-  if (e.key !== 'Enter') {
-    return;
-  }
-  const todoText = inputbox.value.trim();
-  if (todoText.length === 0) {
-    return;
-  }
-  socket.emit('new_todo', todoText);
+  if (e.isComposing || e.key !== 'Enter') return;
+  const text = inputbox.value.trim();
+  if (!text) return;
+  addTodo(text);
   inputbox.value = '';
 });
+
+// --- Initial render ---
+render(deriveState(mergeChains(loadEvents(), [])));
