@@ -405,16 +405,18 @@ pointerup   → ドロップ確定。締め切り補間を計算し postpone イ
 #### 補間関数のシグネチャ（engine.ts）
 
 ```typescript
-// タスクリストの dropIndex 位置にタスクをドロップしたときの新しい deadline を返す。
-// dropIndex=0 は先頭の上、dropIndex=todoList.length は末尾の下。
-export function computeDropDeadline(todoList: Task[], dropIndex: number): number;
+// 挿入位置の上下タスクを受け取り、挿入するタスクに割り当てる deadline を返す。
+// above=null は先頭への挿入、below=null は末尾への挿入を表す。
+export function calculateInsertionDeadline(above: Task | null, below: Task | null): number;
 ```
 
 内部ロジック:
-- `dropIndex === 0` → `todoList[0].deadline - DAY_MS`
-- `dropIndex === todoList.length` → `todoList[last].deadline + DAY_MS`
-- それ以外 → `Math.floor((todoList[dropIndex-1].deadline + todoList[dropIndex].deadline) / 2)`
-- 同一 deadline の場合（差 < 60,000ms）→ 上側 `-30,000ms`、下側 `+30,000ms` で最小ギャップを確保
+- `above=null` → `below.deadline - DAY_MS`（先頭: 先頭タスクの固定 -1日）
+- `below=null` → `above.deadline + DAY_MS`（末尾: 末尾タスクの固定 +1日）
+- それ以外 → `Math.floor((above.deadline + below.deadline) / 2)`（中間値）
+- 同一 deadline の場合（差 < 60,000ms）→ `Math.floor((above.deadline + below.deadline) / 2)` のまま（最小 30 秒ずれる）
+
+UI 側は `todoList[dropIndex - 1] ?? null` と `todoList[dropIndex] ?? null` を渡すだけでよい。
 
 #### 締め切り補間アルゴリズム
 
@@ -502,7 +504,7 @@ todo リスト: [A(d1), B(d2), C(d3), D(d4), E(d5)]  ← deadline 昇順
 ドラッグ後の締め切り変更は既存の `postpone` イベントで表現する。`ms = targetDeadline - now` とすれば `deadline = at + ms = now + (targetDeadline - now) = targetDeadline` となり、任意の絶対時刻を指定できる。イベント型を増やさずシンプルさを維持する。
 
 **D7: 補間ロジックの配置 → `engine.ts` にエクスポート**
-`computeDropDeadline(todoList, dropIndex)` を `engine.ts` にエクスポートする純粋関数として実装する。「挿入位置に対して何ミリ秒の deadline を割り当てるか」は UI とは独立した決定論的ロジックであり、エンジン層に置くことでユニットテスト（T10〜T12）で直接検証できる。
+`calculateInsertionDeadline(above, below)` を `engine.ts` にエクスポートする純粋関数として実装する。「挿入位置に対して何ミリ秒の deadline を割り当てるか」は UI とは独立した決定論的ロジックであり、エンジン層に置くことでユニットテスト（T10〜T12）で直接検証できる。
 
 **D8: `postpone` ms 計算のタイミングずれ → 許容範囲**
 `ms = targetDeadline - Date.now()` を計算し `makeEvent` 内で再度 `Date.now()` が呼ばれるため数ミリ秒のずれが生じるが、秒単位の精度があれば十分なため問題なし。計算式のシンプルさを優先する。
