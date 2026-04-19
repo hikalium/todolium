@@ -1,0 +1,103 @@
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Deterministic winner between two events: higher at wins, eid breaks ties.
+function winner(a, b) {
+    return a.at > b.at || (a.at === b.at && a.eid > b.eid) ? a : b;
+}
+// Given all events for a single task, walk the winning chain from root to tip.
+// At each fork (multiple children of the same parent), the newest event wins
+// and the entire losing branch (all descendants) is discarded.
+function resolveTaskChain(events) {
+    if (events.length === 0)
+        return [];
+    const childrenOf = new Map();
+    for (const e of events) {
+        const list = childrenOf.get(e.parent_eid) ?? [];
+        list.push(e);
+        childrenOf.set(e.parent_eid, list);
+    }
+    const roots = childrenOf.get(null) ?? [];
+    if (roots.length === 0)
+        return [];
+    const result = [];
+    let current = roots.reduce(winner);
+    result.push(current);
+    while (true) {
+        const children = childrenOf.get(current.eid) ?? [];
+        if (children.length === 0)
+            break;
+        current = children.reduce(winner);
+        result.push(current);
+    }
+    return result;
+}
+// Union local and remote events (deduplicate by eid), then resolve forks
+// per task. Returns the set of events that form the winning chains.
+export function mergeChains(local, remote) {
+    const all = new Map();
+    for (const e of [...local, ...remote])
+        all.set(e.eid, e);
+    const byTask = new Map();
+    for (const e of all.values()) {
+        const list = byTask.get(e.task_id) ?? [];
+        list.push(e);
+        byTask.set(e.task_id, list);
+    }
+    const result = [];
+    for (const taskEvents of byTask.values()) {
+        result.push(...resolveTaskChain(taskEvents));
+    }
+    return result;
+}
+// Replay a fork-resolved event list to produce the current display state.
+// Events must already be the output of mergeChains (no unresolved forks).
+export function deriveState(events) {
+    const sorted = [...events].sort((a, b) => a.at - b.at || a.eid.localeCompare(b.eid));
+    const tasks = new Map();
+    for (const e of sorted) {
+        switch (e.type) {
+            case 'add_todo': {
+                tasks.set(e.task_id, {
+                    task_id: e.task_id,
+                    task: e.task,
+                    created_at: e.at,
+                    deadline: e.at + DAY_MS,
+                });
+                break;
+            }
+            case 'edit_task': {
+                const t = tasks.get(e.task_id);
+                if (t)
+                    t.task = e.task;
+                break;
+            }
+            case 'postpone': {
+                const t = tasks.get(e.task_id);
+                if (t)
+                    t.deadline = e.at + e.ms;
+                break;
+            }
+            case 'mark_done': {
+                const t = tasks.get(e.task_id);
+                if (t)
+                    t.done_at = e.at;
+                break;
+            }
+            case 'revert': {
+                const t = tasks.get(e.task_id);
+                // mark_done does not modify deadline, so the current deadline
+                // is already the pre-done value — just clear done_at.
+                if (t)
+                    delete t.done_at;
+                break;
+            }
+        }
+    }
+    const todo_list = [...tasks.values()]
+        .filter(t => t.done_at === undefined)
+        .sort((a, b) => a.deadline - b.deadline);
+    const done_list = [...tasks.values()]
+        .filter((t) => t.done_at !== undefined)
+        .sort((a, b) => b.done_at - a.done_at);
+    return { todo_list, done_list };
+}
+//# sourceMappingURL=engine.js.map
