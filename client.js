@@ -56,18 +56,21 @@ function revertTask(taskId) {
 }
 
 // --- Duration formatting ---
-const fmt = humanizeDuration.humanizer({
-  language: 'shortEn',
-  languages: {
-    shortEn: {
-      y: () => 'y', mo: () => 'mo', w: () => 'w', d: () => 'd',
-      h: () => 'h', m: () => 'm', s: () => 's', ms: () => 'ms',
-    },
-  },
-});
-const fmtOpts = { units: ['d', 'h', 'm', 's'], round: true, spacer: '', largest: 2, delimiter: '' };
-const absDur = (d) => fmt(d, fmtOpts);
-const relDur = (d) => (d < 0 ? '-' : '+') + fmt(Math.abs(d), fmtOpts);
+function formatDuration(ms) {
+  const abs = Math.abs(ms);
+  const d = Math.floor(abs / 86400000);
+  const h = Math.floor((abs % 86400000) / 3600000);
+  const m = Math.floor((abs % 3600000) / 60000);
+  const s = Math.floor((abs % 60000) / 1000);
+  const parts = [];
+  if (d) parts.push(`${d}d`);
+  if (h) parts.push(`${h}h`);
+  if (m) parts.push(`${m}m`);
+  if (s) parts.push(`${s}s`);
+  return parts.slice(0, 2).join('') || '0s';
+}
+const absDur = (ms) => formatDuration(ms);
+const relDur = (ms) => (ms < 0 ? '-' : '+') + formatDuration(ms);
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
