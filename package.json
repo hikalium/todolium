@@ -4,7 +4,8 @@
   "description": "Todo manager for hikalium",
   "scripts": {
     "test": "tsc -p src/tsconfig.json && node --test 'generated/src/engine.test.js'",
-    "start": "node --enable-source-maps generated/server.js"
+    "start": "node --enable-source-maps generated/server.js",
+    "build": "tsc -p src/tsconfig.json && node scripts/build.mjs"
   },
   "repository": {
     "type": "git",
