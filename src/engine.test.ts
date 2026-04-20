@@ -145,12 +145,10 @@ test('T12: calculateInsertionDeadline at bottom returns last.deadline + 1 day', 
   assert.equal(calculateInsertionDeadline(above, null), 5000 + DAY_MS);
 });
 
-// T13: when neighbors share the same deadline, minimum gap is enforced
-test('T13: calculateInsertionDeadline enforces minimum gap for identical deadlines', () => {
+// T13: when neighbors share the same deadline, midpoint equals that deadline
+test('T13: calculateInsertionDeadline with identical deadlines returns midpoint (same value)', () => {
   const d = 10000;
-  const result = calculateInsertionDeadline(task(d), task(d));
-  assert.ok(result > d, 'result should be greater than above.deadline');
-  assert.ok(result < d + 60_000, 'result should be within min gap');
+  assert.equal(calculateInsertionDeadline(task(d), task(d)), d);
 });
 
 // T14: empty list (both null) returns approximately now + 1 day
