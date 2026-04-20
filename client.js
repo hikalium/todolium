@@ -121,7 +121,48 @@ function esc(s) {
 }
 
 // --- Drag-to-reorder ---
-let dragState = null; // { taskId, sourceIndex, indicatorEl }
+
+// Insert taskId between above and below, pre-respacing if gap < 1s.
+// Respacing walks tasks with deadline > above.deadline and ensures each
+// has at least 16 seconds gap from the previous, stopping when the gap
+// is already sufficient. All postpone events are batched into one save.
+function reorderTask(taskId, above, below, allTasks) {
+  const postpones = [];
+
+  if (above !== null && below !== null && below.deadline - above.deadline < 1000) {
+    let prevDeadline = above.deadline;
+    const tasksAfterP = [...allTasks]
+      .filter(t => t.deadline > above.deadline)
+      .sort((a, b) => a.deadline - b.deadline);
+    for (const t of tasksAfterP) {
+      if (t.deadline - prevDeadline >= 16000) break;
+      const newDeadline = prevDeadline + 16000;
+      postpones.push({ taskId: t.task_id, targetDeadline: newDeadline });
+      prevDeadline = newDeadline;
+    }
+  }
+
+  const respaceMap = new Map(postpones.map(p => [p.taskId, p.targetDeadline]));
+  const updatedBelow = below
+    ? { ...below, deadline: respaceMap.get(below.task_id) ?? below.deadline }
+    : null;
+  postpones.push({ taskId, targetDeadline: calculateInsertionDeadline(above, updatedBelow) });
+
+  const events = loadEvents();
+  const merged = mergeChains(events, []);
+  const tipMap = new Map();
+  const newEvents = [];
+  for (const { taskId: tid, targetDeadline } of postpones) {
+    const tip = tipMap.get(tid) ?? getTaskTip(merged, tid);
+    if (!tip) continue;
+    const e = makeEvent('postpone', tid, tip, { ms: targetDeadline - Date.now() });
+    newEvents.push(e);
+    tipMap.set(tid, e.eid);
+  }
+  saveAndRender([...events, ...newEvents]);
+}
+
+let dragState = null; // { taskId, sourceIndex }
 
 function setupDrag(todoListEl, todoList) {
   let indicatorEl = null;
@@ -188,9 +229,7 @@ function setupDrag(todoListEl, todoList) {
       // Exclude the dragged task itself from neighbor computation
       const aboveAdj = above && above.task_id === taskId ? (todoList[dropIndex - 2] ?? null) : above;
       const belowAdj = below && below.task_id === taskId ? (todoList[dropIndex + 1] ?? null) : below;
-      const targetDeadline = calculateInsertionDeadline(aboveAdj, belowAdj);
-      const ms = targetDeadline - Date.now();
-      postpone(taskId, ms);
+      reorderTask(taskId, aboveAdj, belowAdj, todoList);
     });
 
     handle.addEventListener('pointercancel', () => {
